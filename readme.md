@@ -45,4 +45,5 @@ optional arguments:
 #### `catches.csv` fields
 + centroid_x, centroid_y: the longitude and latitude of the center point of the grid cell
 used to collect this record.
+
 +id: a unique identifier for the "catch" or "post"
