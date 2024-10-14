@@ -9,35 +9,85 @@ import os
 import pandas
 import pygeoprocessing
 import requests
+import shapely
+import shapely.wkt
 import taskgraph
-from osgeo import osr, ogr
+from osgeo import osr, ogr, gdal
 
 BASE_URL = 'https://rutilus.fishbrain.com/graphql'
 
 
-def split_bbox(bbox):
-    mid_x_coord = (bbox[0] + bbox[2]) / 2
-    mid_y_coord = (bbox[1] + bbox[3]) / 2
+def grid_vector(vector_path, cell_size, out_grid_vector_path):
+    """Convert vector to a regular grid.
 
-    bounding_quads = [
-        [bbox[0],  # xmin
-         mid_y_coord,  # ymin
-         mid_x_coord,  # xmax
-         bbox[3]],
-        [mid_x_coord,  # xmin
-         mid_y_coord,  # ymin
-         bbox[2],  # xmax
-         bbox[3]],
-        [bbox[0],  # xmin
-         bbox[1],  # ymin
-         mid_x_coord,  # xmax
-         mid_y_coord],  # ymax
-        [mid_x_coord,  # xmin
-         bbox[1],  # ymin
-         bbox[2],  # xmax
-         mid_y_coord],  # ymax
-    ]
-    return bounding_quads
+    Here the vector is gridded such that all cells are contained within the
+    original vector.  Cells that would intersect with the boundary are not
+    produced.
+
+    Args:
+        vector_path (string): path to an OGR compatible polygon vector type
+        cell_size (float): dimensions of the grid cell in the projected units
+            of ``vector_path``; if "square" then this indicates the side length,
+            if "hexagon" indicates the width of the horizontal axis.
+        out_grid_vector_path (string): path to the output ESRI shapefile
+            vector that contains a gridded version of ``vector_path``, this file
+            should not exist before this call
+
+    Returns:
+        None
+
+    """
+    driver = gdal.GetDriverByName('ESRI Shapefile')
+    if os.path.exists(out_grid_vector_path):
+        driver.Delete(out_grid_vector_path)
+
+    vector = gdal.OpenEx(vector_path, gdal.OF_VECTOR)
+    vector_layer = vector.GetLayer()
+    spat_ref = vector_layer.GetSpatialRef()
+
+    original_vector_shapes = []
+    for feature in vector_layer:
+        wkt_feat = shapely.wkt.loads(feature.geometry().ExportToWkt())
+        original_vector_shapes.append(wkt_feat)
+    vector_layer.ResetReading()
+    original_polygon = shapely.prepared.prep(
+        shapely.ops.unary_union(original_vector_shapes))
+
+    out_grid_vector = driver.Create(
+        out_grid_vector_path, 0, 0, 0, gdal.GDT_Unknown)
+    grid_layer = out_grid_vector.CreateLayer(
+        'grid', spat_ref, ogr.wkbPolygon)
+    grid_layer_defn = grid_layer.GetLayerDefn()
+
+    extent = vector_layer.GetExtent()  # minx maxx miny maxy
+
+    def _generate_polygon(col_index, row_index):
+        """Generate points for a closed square."""
+        square = [
+            (extent[0] + col_index * cell_size + x,
+             extent[2] + row_index * cell_size + y)
+            for x, y in [
+                (0, 0), (cell_size, 0), (cell_size, cell_size),
+                (0, cell_size), (0, 0)]]
+        return square
+    n_rows = int((extent[3] - extent[2]) / cell_size)
+    n_cols = int((extent[1] - extent[0]) / cell_size)
+
+    for row_index in range(n_rows):
+        for col_index in range(n_cols):
+            polygon_points = _generate_polygon(col_index, row_index)
+            ring = ogr.Geometry(ogr.wkbLinearRing)
+            for xoff, yoff in polygon_points:
+                ring.AddPoint(xoff, yoff)
+            poly = ogr.Geometry(ogr.wkbPolygon)
+            poly.AddGeometry(ring)
+
+            if original_polygon.contains(
+                    shapely.wkt.loads(poly.ExportToWkt())):
+                poly_feature = ogr.Feature(grid_layer_defn)
+                poly_feature.SetGeometry(poly)
+                grid_layer.CreateFeature(poly_feature)
+
 
 def query(bbox, cursor):
     # [minx, miny, maxx, maxy]
@@ -67,46 +117,37 @@ def query(bbox, cursor):
     return data
 
 
-def collect(bbox, workspace, file_token):
-    grand_total = 0
+def collect(bbox, target_filepath):
+    print(f'Querying with bounding box: {bbox}')
+    cursor = None
+    data = query(bbox, cursor)
+    total_count = data['data']['mapArea']['catches']['totalCount']
+    print(f'found {total_count} catches to collect')
 
-    def _collect(bbox, workspace):
-        print(f'Querying with bounding box: {bbox}')
-        cursor = None
+    if total_count >= 10000:
+        print(f'{bbox} has more than 10000 catches. Only the first 10000'
+              'can be queried. Consider choosing a smaller cellsize')
+
+    collection = {
+        'centroid_x': (bbox[0] + bbox[2]) / 2,
+        'centroid_y': (bbox[1] + bbox[3]) / 2,
+        'edges': []
+    }
+    has_next = True
+    while has_next:
         data = query(bbox, cursor)
-        total_count = data['data']['mapArea']['catches']['totalCount']
-        if total_count < 10000:
-            print(f'found {total_count} catches to collect')
-            nonlocal grand_total
-            grand_total += total_count
-            target_filepath = os.path.join(
-                workspace, f'{"_".join([str(x) for x in bbox])}.json')
-            results = []
-            has_next = True
-            while has_next:
-                data = query(bbox, cursor)
-                edges = data['data']['mapArea']['catches']['edges']
-                results.extend(edges)
-                page_info = data['data']['mapArea']['catches']['pageInfo']
-                cursor = page_info['endCursor']
-                has_next = page_info['hasNextPage']
-                print(f'Collected {len(results)} catches...')
-            with open(target_filepath, 'w') as file:
-                file.write(json.dumps(results))
-        else:
-            quadrants = split_bbox(bbox)
-            for quad in quadrants:
-                _collect(quad, workspace)
-
-    _collect(bbox, workspace)
-
-    with open(file_token, 'w') as file:
-        file.write(f'Collected {grand_total} catches in {bbox}')
-    print('Completed queries.')
-
+        collection['edges'].extend(data['data']['mapArea']['catches']['edges'])
+        page_info = data['data']['mapArea']['catches']['pageInfo']
+        cursor = page_info['endCursor']
+        has_next = page_info['hasNextPage']
+        print(f'Collected {len(collection["edges"])} catches...')
+    with open(target_filepath, 'w') as file:
+        file.write(json.dumps(collection))
 
 def parse(json_list, target_filepath):
     base_record = {
+        'centroid_x': '',
+        'centroid_y': '',
         'id': '',
         'caughtAtGmt': '',
         'fishingWaterID': '',
@@ -128,10 +169,12 @@ def parse(json_list, target_filepath):
         for jsonfile in json_list:
             print(f'Parsing data in {jsonfile}')
             with open(jsonfile, 'r') as file:
-                edges = json.load(file)
-            for item in edges:
+                collection = json.load(file)
+            for item in collection['edges']:
                 record = base_record.copy()
                 node = item['node']
+                record['centroid_x'] = collection['centroid_x']
+                record['centroid_y'] = collection['centroid_y']
                 record['id'] = node['_id']
                 record['caughtAtGmt'] = node['caughtAtGmt']
 
@@ -172,6 +215,11 @@ def main(user_args=None):
               'Format as a sequence of longitude/latitude decimal-degrees: \n'
               '--bbox min-lon min-lat max-lon max-lat \n'
               'Required if aoi is not used.'))
+    parser.add_argument(
+        '-c', '--cellsize',
+        type=int,
+        help=('The AOI will be divided into square polygons with width and height \n'
+              'equal to cellsize. Cellsize uses the same units as the AOI coordinate system.'))
 
     args = parser.parse_args(user_args)
     cache_dir = os.path.join(args.workspace, 'taskgraph_cache')
@@ -179,33 +227,42 @@ def main(user_args=None):
         os.makedirs(cache_dir)
     task_graph = taskgraph.TaskGraph(cache_dir, n_workers=-1)
 
-    if args.bbox:
-        bbox = args.bbox
-    elif args.aoi:
-        lat_lng_ref = osr.SpatialReference()
-        lat_lng_ref.ImportFromEPSG(4326)  # EPSG 4326 is lat/lng
-        vector_info = pygeoprocessing.get_vector_info(args.aoi)
-        native_bbox = vector_info['bounding_box']
-        bbox = pygeoprocessing.transform_bounding_box(
-            native_bbox, vector_info['projection_wkt'], lat_lng_ref.ExportToWkt())
-    else:
-        raise ValueError('Neither --aoi or --box was given as an argument.')
+    aoi_path = os.path.join(args.workspace, 'aoi.shp')
+    grid_vector(args.aoi, 'square', args.cellsize, aoi_path)
+    lat_lng_ref = osr.SpatialReference()
+    lat_lng_ref.ImportFromEPSG(4326)  # EPSG 4326 is lat/lng
+    vector_info = pygeoprocessing.get_vector_info(args.aoi)
+    aoi_path_wgs84 = os.path.join(args.workspace, 'aoi_wgs84.shp')
+    pygeoprocessing.reproject_vector(
+        aoi_path, lat_lng_ref.ExportToWkt(), aoi_path_wgs84)
 
     csv_filepath = os.path.join(args.workspace, 'catches.csv')
     json_dir = os.path.join(args.workspace, 'json')
-    file_token = os.path.join(json_dir, 'query_complete.txt')
+    if not os.path.exists(json_dir):
+        os.makedirs(json_dir)
 
-    collection_task = task_graph.add_task(
-        collect,
-        args=[bbox, json_dir, file_token],
-        target_path_list=[file_token])
+    vector = gdal.OpenEx(aoi_path_wgs84)
+    layer = vector.GetLayer()
+
+    collect_task_list = []
+    for feature in layer:
+        fid = feature.GetFID()
+        geom = feature.GetGeometryRef()
+        envelope = geom.GetEnvelope()
+        bbox = [envelope[0], envelope[2], envelope[1], envelope[3]]
+        target_filepath = os.path.join(json_dir, f'{fid}.json')
+        collect_task_list.append(task_graph.add_task(
+            collect,
+            args=[bbox, target_filepath],
+            target_path_list=[target_filepath]))
+    print('Completed queries.')
 
     json_list = glob.glob(os.path.join(json_dir, '*.json'))
     parse_task = task_graph.add_task(
         parse,
         args=[json_list, csv_filepath],
         target_path_list=[csv_filepath],
-        dependent_task_list=[collection_task])
+        dependent_task_list=collect_task_list)
 
     task_graph.close()
     task_graph.join()
