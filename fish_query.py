@@ -6,7 +6,6 @@ import glob
 import json
 import os
 
-import pandas
 import pygeoprocessing
 import requests
 import shapely
@@ -204,21 +203,17 @@ def main(user_args=None):
     )
     parser.add_argument(
         '-w', '--workspace',
-        help=('The workspace in which outputs will be saved.'))
+        help=('A directory in which outputs will be saved. '
+              'This folder will be created if it does not exist.'))
     parser.add_argument(
-        '-a', '--aoi', default=None,
-        help=('A polygon vector whose bounding box will be used for the query area. '
-              'Required if extent is not used.'))
-    parser.add_argument(
-        '-b', '--bbox', default=None,
-        help=('A bounding box that will be used for the query area.\n'
-              'Format as a sequence of longitude/latitude decimal-degrees: \n'
-              '--bbox min-lon min-lat max-lon max-lat \n'
-              'Required if aoi is not used.'))
+        '-a', '--aoi',
+        help=('A polygon vector that defines the area to be queried. '
+              'This vector can use any coordinate system. '
+              'It will be divided into smaller polygons based on the cellsize argument.'))
     parser.add_argument(
         '-c', '--cellsize',
         type=int,
-        help=('The AOI will be divided into square polygons with width and height \n'
+        help=('The AOI will be divided into square polygons with width and height '
               'equal to cellsize. Cellsize uses the same units as the AOI coordinate system.'))
 
     args = parser.parse_args(user_args)

@@ -1,5 +1,5 @@
-Given an area of interest polygon, this script will query fishbrain
-for all catches and associated metadata within the area.
+This script will query fishbrain for all catches and associated metadata within 
+an area of interest.
 
 Many catches are associated with a specific water body, and are geolocated 
 using that waterbody. Some catches do not have a listed waterbody, but are 
@@ -41,3 +41,8 @@ optional arguments:
 `aoi.shp` - the gridded version of the area of interest
 `aoi_wgs84.shp` - the AOI transformed into lat/lon coordinates
 `json` - a directory with the raw data retrieved from fishbrain. This data is parsed into `catches.csv`.
+
+#### `catches.csv` fields
++ centroid_x, centroid_y: the longitude and latitude of the center point of the grid cell
+used to collect this record.
++id: a unique identifier for the "catch" or "post"
