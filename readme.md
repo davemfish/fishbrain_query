@@ -37,10 +37,10 @@ optional arguments:
 
 ### Outputs
 
-`catches.csv` - the catch data in tabular format
-`aoi.shp` - the gridded version of the area of interest
-`aoi_wgs84.shp` - the AOI transformed into lat/lon coordinates
-`json` - a directory with the raw data retrieved from fishbrain. This data is parsed into `catches.csv`.
++ `catches.csv` - the catch data in tabular format
++ `aoi.shp` - the gridded version of the area of interest
++ `aoi_wgs84.shp` - the AOI transformed into lat/lon coordinates
++ `json` - a directory with the raw data retrieved from fishbrain. This data is parsed into `catches.csv`.
 
 #### `catches.csv` fields
 + centroid_x, centroid_y: the longitude and latitude of the center point of the grid cell
