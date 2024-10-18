@@ -143,6 +143,7 @@ def collect(bbox, target_filepath):
     with open(target_filepath, 'w') as file:
         file.write(json.dumps(collection))
 
+
 def parse(json_list, target_filepath):
     base_record = {
         'centroid_x': '',
@@ -160,7 +161,7 @@ def parse(json_list, target_filepath):
         'userID': ''
     }
     fieldnames = base_record.keys()
-    with open(target_filepath, 'w', newline='') as csvfile:
+    with open(target_filepath, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(
             csvfile, fieldnames=fieldnames, delimiter=',', quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
@@ -226,7 +227,6 @@ def main(user_args=None):
     grid_vector(args.aoi, args.cellsize, aoi_path)
     lat_lng_ref = osr.SpatialReference()
     lat_lng_ref.ImportFromEPSG(4326)  # EPSG 4326 is lat/lng
-    vector_info = pygeoprocessing.get_vector_info(args.aoi)
     aoi_path_wgs84 = os.path.join(args.workspace, 'aoi_wgs84.shp')
     pygeoprocessing.reproject_vector(
         aoi_path, lat_lng_ref.ExportToWkt(), aoi_path_wgs84)
@@ -261,6 +261,7 @@ def main(user_args=None):
 
     task_graph.close()
     task_graph.join()
+
 
 if __name__ == '__main__':
     main()
