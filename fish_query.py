@@ -223,7 +223,7 @@ def main(user_args=None):
     task_graph = taskgraph.TaskGraph(cache_dir, n_workers=-1)
 
     aoi_path = os.path.join(args.workspace, 'aoi.shp')
-    grid_vector(args.aoi, 'square', args.cellsize, aoi_path)
+    grid_vector(args.aoi, args.cellsize, aoi_path)
     lat_lng_ref = osr.SpatialReference()
     lat_lng_ref.ImportFromEPSG(4326)  # EPSG 4326 is lat/lng
     vector_info = pygeoprocessing.get_vector_info(args.aoi)
