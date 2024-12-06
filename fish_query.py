@@ -106,7 +106,219 @@ def query(bbox, cursor):
     if cursor:
         variables['after'] = cursor
 
-    query = "query GetCatchesInMapBoundingBox($boundingBox: BoundingBoxInputObject, $first: Int, $after: String, $caughtInMonths: [MonthEnum!], $speciesIds: [String!]) {\n  mapArea(boundingBox: $boundingBox) {\n    catches(\n      first: $first\n      after: $after\n      caughtInMonths: $caughtInMonths\n      speciesIds: $speciesIds\n    ) {\n      totalCount\n      pageInfo {\n        startCursor\n        hasNextPage\n        endCursor\n        __typename\n      }\n      edges {\n        node {\n          ...CatchId\n          createdAt\n          caughtAtGmt\n          post {\n            ...PostId\n            catch {\n              ...CatchId\n              ...CatchFishingWaterName\n              ...CatchSpeciesName\n              __typename\n            }\n            comments {\n              totalCount\n              __typename\n            }\n            createdAt\n            displayProductUnits {\n              totalCount\n              __typename\n            }\n            images(first: 1, croppingStrategy: SMART, height: 260, width: 333) {\n              totalCount\n              edges {\n                node {\n                  ...ImageFields\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            likedByCurrentUser\n            likesCount\n            text {\n              text\n              __typename\n            }\n            user {\n              ...UserId\n              ...UserAvatar\n              nickname\n              __typename\n            }\n            __typename\n          }\n          species {\n            ...SpeciesId\n            displayName\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment CatchId on Catch {\n  _id: externalId\n  __typename\n}\n\nfragment CatchFishingWaterName on Catch {\n  fishingWater {\n    ...FishingWaterId\n    displayName\n    latitude\n    longitude\n    __typename\n  }\n  __typename\n}\n\nfragment FishingWaterId on FishingWater {\n  _id: externalId\n  __typename\n}\n\nfragment CatchSpeciesName on Catch {\n  species {\n    ...SpeciesId\n    displayName\n    __typename\n  }\n  __typename\n}\n\nfragment SpeciesId on Species {\n  _id: externalId\n  __typename\n}\n\nfragment PostId on Post {\n  _id: externalId\n  __typename\n}\n\nfragment ImageFields on Image {\n  width\n  height\n  url\n  __typename\n}\n\nfragment UserAvatar on User {\n  avatar(croppingStrategy: CENTER, height: 128, width: 128) {\n    height\n    width\n    ...ImageFields\n    __typename\n  }\n  __typename\n}\n\nfragment UserId on User {\n  _id: externalId\n  __typename\n}"
+    #query = "query GetCatchesInMapBoundingBox($boundingBox: BoundingBoxInputObject, $first: Int, $after: String, $caughtInMonths: [MonthEnum!], $speciesIds: [String!]) {\n  mapArea(boundingBox: $boundingBox) {\n    catches(\n      first: $first\n      after: $after\n      caughtInMonths: $caughtInMonths\n      speciesIds: $speciesIds\n    ) {\n      totalCount\n      pageInfo {\n        startCursor\n        hasNextPage\n        endCursor\n        __typename\n      }\n      edges {\n        node {\n          ...CatchId\n          createdAt\n          caughtAtGmt\n          post {\n            ...PostId\n            catch {\n              ...CatchId\n              ...CatchFishingWaterName\n              ...CatchSpeciesName\n              __typename\n            }\n            comments {\n              totalCount\n              __typename\n            }\n            createdAt\n            displayProductUnits {\n              totalCount\n              __typename\n            }\n            images(first: 1, croppingStrategy: SMART, height: 260, width: 333) {\n              totalCount\n              edges {\n                node {\n                  ...ImageFields\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            likedByCurrentUser\n            likesCount\n            text {\n              text\n              __typename\n            }\n            user {\n              ...UserId\n              ...UserAvatar\n              nickname\n              __typename\n            }\n            __typename\n          }\n          species {\n            ...SpeciesId\n            displayName\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment CatchId on Catch {\n  _id: externalId\n  __typename\n}\n\nfragment CatchFishingWaterName on Catch {\n  fishingWater {\n    ...FishingWaterId\n    displayName\n    latitude\n    longitude\n    __typename\n  }\n  __typename\n}\n\nfragment FishingWaterId on FishingWater {\n  _id: externalId\n  __typename\n}\n\nfragment CatchSpeciesName on Catch {\n  species {\n    ...SpeciesId\n    displayName\n    __typename\n  }\n  __typename\n}\n\nfragment SpeciesId on Species {\n  _id: externalId\n  __typename\n}\n\nfragment PostId on Post {\n  _id: externalId\n  __typename\n}\n\nfragment ImageFields on Image {\n  width\n  height\n  url\n  __typename\n}\n\nfragment UserAvatar on User {\n  avatar(croppingStrategy: CENTER, height: 128, width: 128) {\n    height\n    width\n    ...ImageFields\n    __typename\n  }\n  __typename\n}\n\nfragment UserId on User {\n  _id: externalId\n  __typename\n}"
+    query = """
+    query GetCatchesInMapBoundingBox($boundingBox: BoundingBoxInputObject, $first: Int, $after: String, $caughtInMonths: [MonthEnum!], $speciesIds: [String!]) {
+      mapArea(boundingBox: $boundingBox) {
+        catches(
+          first: $first
+          after: $after
+          caughtInMonths: $caughtInMonths
+          speciesIds: $speciesIds
+        ) {
+          totalCount
+          pageInfo {
+            startCursor
+            hasNextPage
+            endCursor
+            __typename
+          }
+          edges {
+            node {
+              ...CatchId
+              createdAt
+              caughtAtGmt
+              post {
+                ...PostId
+                catch {
+                  ...CatchId
+                  ...CatchFishingWaterName
+                  ...CatchSpeciesName
+                  __typename
+                }
+                comments {
+                  totalCount
+                  __typename
+                }
+                createdAt
+                displayProductUnits {
+                  totalCount
+                  __typename
+                }
+                ...PostProductUnits
+                ...PostVideoFields
+                images(first: 1, croppingStrategy: SMART, height: 260, width: 333) {
+                  totalCount
+                  edges {
+                    node {
+                      ...ImageFields
+                      __typename
+                    }
+                    __typename
+                  }
+                  __typename
+                }
+                likedByCurrentUser
+                likesCount
+                text {
+                  text
+                  __typename
+                }
+                user {
+                  ...UserId
+                  ...UserAvatar
+                  nickname
+                  __typename
+                }
+                __typename
+              }
+              species {
+                ...SpeciesId
+                displayName
+                __typename
+              }
+              __typename
+            }
+            __typename
+          }
+          __typename
+        }
+        __typename
+      }
+    }
+
+    fragment CatchId on Catch {
+      _id: externalId
+      __typename
+    }
+
+    fragment CatchFishingWaterName on Catch {
+      fishingWater {
+        ...FishingWaterId
+        displayName
+        latitude
+        longitude
+        __typename
+      }
+      __typename
+    }
+
+    fragment FishingWaterId on FishingWater {
+      _id: externalId
+      __typename
+    }
+
+    fragment CatchSpeciesName on Catch {
+      species {
+        ...SpeciesId
+        displayName
+        __typename
+      }
+      __typename
+    }
+
+    fragment SpeciesId on Species {
+      _id: externalId
+      __typename
+    }
+
+    fragment PostId on Post {
+      _id: externalId
+      __typename
+    }
+
+    fragment PostProductUnits on Post {
+      productUnits(first: 20) {
+        edges {
+          node {
+            ...ProductUnitId
+            model
+            image {
+              ...ImageFields
+              __typename
+            }
+            product {
+              ...ProductId
+              ...ProductBrandName
+              displayName
+              __typename
+            }
+            __typename
+          }
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+
+    fragment ImageFields on Image {
+      width
+      height
+      url
+      __typename
+    }
+
+    fragment ProductBrandName on Product {
+      brand {
+        ...BrandId
+        name
+        __typename
+      }
+      __typename
+    }
+
+    fragment BrandId on Brand {
+      id
+      __typename
+    }
+
+    fragment ProductId on Product {
+      _id: externalId
+      legacyId: id
+      __typename
+    }
+
+    fragment ProductUnitId on ProductUnit {
+      id
+      __typename
+    }
+
+    fragment PostVideoFields on Post {
+      video {
+        ...VideoId
+        hlsUrl
+        webUrl
+        originalUrl
+        screenshot(width: 600) {
+          ...ImageFields
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+
+    fragment VideoId on Video {
+      id
+      __typename
+    }
+
+    fragment UserAvatar on User {
+      avatar(croppingStrategy: CENTER, height: 128, width: 128) {
+        height
+        width
+        ...ImageFields
+        __typename
+      }
+      __typename
+    }
+
+    fragment UserId on User {
+      _id: externalId
+      __typename
+    }
+    """
     r = requests.post(BASE_URL, json={'query': query, 'variables': variables})
     try:
         data = r.json()
@@ -116,7 +328,201 @@ def query(bbox, cursor):
     return data
 
 
-def collect(bbox, target_filepath):
+def query_catch(post_id):
+    query = """
+    query GetCatchDetails($externalId: String) {
+      catchDetails: post(externalId: $externalId) {
+        ...PostId
+        catchConditions: catch {
+          ...CatchId
+          caughtAtLocalTimeZone
+          latitude
+          longitude
+          moonIllumination
+          sunPosition
+          weatherAndMarineReading {
+            ...WeatherAndMarineReadingId
+            airPressure
+            airTemperature
+            waterTemperature
+            weatherCondition {
+              localizedValue
+              worldWeatherOnlineIdentifier
+              __typename
+            }
+            windDirection {
+              degrees
+              shortLocalizedValue
+              __typename
+            }
+            windSpeed
+            __typename
+          }
+          __typename
+        }
+        catchPost: catch {
+          ...CatchId
+          catchAndRelease
+          caughtAtGmt
+          createdAt
+          fishingMethod {
+            ...FishingMethodId
+            displayName
+            __typename
+          }
+          fishingWater {
+            ...FishingWaterId
+            displayName
+            latitude
+            longitude
+            __typename
+          }
+          hasExactPosition
+          length
+          locationPrivacy
+          species {
+            ...SpeciesId
+            displayName
+            __typename
+          }
+          user {
+            ...UserId
+            avatar {
+              url
+              __typename
+            }
+            nickname
+            __typename
+          }
+          weight
+          __typename
+        }
+        trip {
+          id
+          catches {
+            totalCount
+            __typename
+          }
+          __typename
+        }
+        catchGear: displayProductUnits(first: 20) {
+          edges {
+            node {
+              ...ProductUnitId
+              product {
+                ...ProductId
+                brand {
+                  ...BrandId
+                  name
+                  __typename
+                }
+                image {
+                  ...ImageFields
+                  __typename
+                }
+                displayName
+                __typename
+              }
+              __typename
+            }
+            __typename
+          }
+          __typename
+        }
+        __typename
+      }
+    }
+
+    fragment BrandId on Brand {
+      id
+      __typename
+    }
+
+    fragment CatchId on Catch {
+      _id: externalId
+      __typename
+    }
+
+    fragment FishingMethodId on FishingMethod {
+      _id: externalId
+      __typename
+    }
+
+    fragment FishingWaterId on FishingWater {
+      _id: externalId
+      __typename
+    }
+
+    fragment ImageFields on Image {
+      width
+      height
+      url
+      __typename
+    }
+
+    fragment SpeciesId on Species {
+      _id: externalId
+      __typename
+    }
+
+    fragment PostId on Post {
+      _id: externalId
+      __typename
+    }
+
+    fragment ProductId on Product {
+      _id: externalId
+      legacyId: id
+      __typename
+    }
+
+    fragment ProductUnitId on ProductUnit {
+      id
+      __typename
+    }
+
+    fragment UserId on User {
+      _id: externalId
+      __typename
+    }
+
+    fragment WeatherAndMarineReadingId on WeatherAndMarineReading {
+      id
+      __typename
+    }
+    """
+    variables = {
+        'externalId': post_id
+    }
+    r = requests.post(BASE_URL, json={'query': query, 'variables': variables})
+    try:
+        return r.json()
+    except Exception as err:
+        print(r.text)
+        raise err
+
+
+def query_catch_details(in_json_filepath, centroid_dict, target_filepath):
+    print('querying catch details...')
+    data = {}
+    with open(in_json_filepath, 'r') as file:
+        collection = json.load(file)
+    i = 0
+    for item in collection['edges']:
+        i += 1
+        if (i > 0) and (i % 10 == 0):
+            print(f'queried {i}')
+        # catch_id = item['node']['_id']
+        post_id = item['node']['post']['_id']
+        results = query_catch(post_id)
+        data[post_id] = results | centroid_dict
+
+    print(f'collected details for {i} catches')
+    with open(target_filepath, 'w') as file:
+        file.write(json.dumps(data))
+
+
+def collect(bbox, centroid_dict, target_filepath):
     print(f'Querying with bounding box: {bbox}')
     cursor = None
     data = query(bbox, cursor)
@@ -127,11 +533,7 @@ def collect(bbox, target_filepath):
         print(f'{bbox} has more than 10000 catches. Only the first 10000'
               'can be queried. Consider choosing a smaller cellsize')
 
-    collection = {
-        'centroid_x': (bbox[0] + bbox[2]) / 2,
-        'centroid_y': (bbox[1] + bbox[3]) / 2,
-        'edges': []
-    }
+    collection = {'edges': []} | centroid_dict
     has_next = True
     while has_next:
         data = query(bbox, cursor)
@@ -139,12 +541,86 @@ def collect(bbox, target_filepath):
         page_info = data['data']['mapArea']['catches']['pageInfo']
         cursor = page_info['endCursor']
         has_next = page_info['hasNextPage']
-        print(f'Collected {len(collection["edges"])} catches...')
+        print(f'Collected {len(collection["edges"])} catches')
     with open(target_filepath, 'w') as file:
         file.write(json.dumps(collection))
 
 
-def parse(json_list, target_filepath):
+def parse_catch_details(json_list, target_filepath):
+    base_record = {
+        'centroid_x': '',
+        'centroid_y': '',
+        'postID': '',
+        'caughtAtGmt': '',
+        'fishingWaterID': '',
+        'fishingWaterName': '',
+        'fishingWaterLon': '',
+        'fishingWaterLat': '',
+        'fishingMethod': '',
+        'catchAndRelease': '',
+        'speciesID': '',
+        'speciesName': '',
+        'length_meters': '',
+        'weight_kg': '',
+        'hasExactPosition': '',
+        'locationPrivacy': '',
+        'userID': ''
+    }
+    fieldnames = base_record.keys()
+    with open(target_filepath, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(
+            csvfile, fieldnames=fieldnames, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        writer.writeheader()
+
+        for jsonfile in json_list:
+            print(f'Parsing data in {jsonfile}')
+            with open(jsonfile, 'r') as file:
+                collection = json.load(file)
+            for post_id, details in collection.items():
+                record = base_record.copy()
+                record['postID'] = post_id
+                record['centroid_x'] = details['centroid_x']
+                record['centroid_y'] = details['centroid_y']
+                try:
+                    data = details['data']['catchDetails']['catchPost']
+                except (KeyError, TypeError) as e:
+                    print(f'{post_id}: no details in {jsonfile}')
+                    writer.writerow(record)
+                    continue
+
+                record['caughtAtGmt'] = data['caughtAtGmt']
+                record['catchAndRelease'] = data['catchAndRelease']
+                record['hasExactPosition'] = data['hasExactPosition']
+                record['length_meters'] = data['length']
+                record['weight_kg'] = data['weight']
+                record['locationPrivacy'] = data['locationPrivacy']
+
+                fishingWater = data.get('fishingWater')
+                if fishingWater:
+                    record['fishingWaterID'] = fishingWater['_id']
+                    record['fishingWaterName'] = fishingWater['displayName']
+                    record['fishingWaterLon'] = fishingWater['longitude']
+                    record['fishingWaterLat'] = fishingWater['latitude']
+
+                fishingMethod = data.get('fishingMethod')
+                if fishingMethod:
+                    record['fishingMethod'] = fishingMethod['displayName']
+
+                species = data.get('species')
+                if species:
+                    record['speciesID'] = species['_id']
+                    record['speciesName'] = species['displayName']
+
+                user = data.get('user')
+                if user:
+                    record['userID'] = user['_id']
+
+                writer.writerow(record)
+
+    print(f'Completed. Tabular data is in {target_filepath}')
+
+
+def parse_grid_collection(json_list, target_filepath):
     base_record = {
         'centroid_x': '',
         'centroid_y': '',
@@ -233,31 +709,50 @@ def main(user_args=None):
 
     csv_filepath = os.path.join(args.workspace, 'catches.csv')
     json_dir = os.path.join(args.workspace, 'json')
+    details_dir = os.path.join(json_dir, 'details')
     if not os.path.exists(json_dir):
         os.makedirs(json_dir)
+    if not os.path.exists(details_dir):
+        os.makedirs(details_dir)
 
     vector = gdal.OpenEx(aoi_path_wgs84)
     layer = vector.GetLayer()
 
-    collect_task_list = []
+    # collect_task_list = []
+    details_task_list = []
+    target_details_path_list = []
     for feature in layer:
         fid = feature.GetFID()
         geom = feature.GetGeometryRef()
         envelope = geom.GetEnvelope()
         bbox = [envelope[0], envelope[2], envelope[1], envelope[3]]
-        target_filepath = os.path.join(json_dir, f'{fid}.json')
-        collect_task_list.append(task_graph.add_task(
+        centroid_dict = {
+            'centroid_x': (bbox[0] + bbox[2]) / 2,
+            'centroid_y': (bbox[1] + bbox[3]) / 2
+        }
+        target_grid_filepath = os.path.join(json_dir, f'grid_{fid}.json')
+        # target_json_path_list.append(target_grid_filepath)
+        collect_task = task_graph.add_task(
             collect,
-            args=[bbox, target_filepath],
-            target_path_list=[target_filepath]))
+            args=[bbox, centroid_dict, target_grid_filepath],
+            target_path_list=[target_grid_filepath])
+
+        target_details_filepath = os.path.join(details_dir, f'details_{fid}.json')
+        target_details_path_list.append(target_details_filepath)
+        details_task = task_graph.add_task(
+            query_catch_details,
+            args=[target_grid_filepath, centroid_dict, target_details_filepath],
+            target_path_list=[target_details_filepath],
+            dependent_task_list=[collect_task])
+        details_task_list.append(details_task)
+
     print('Completed queries.')
 
-    json_list = glob.glob(os.path.join(json_dir, '*.json'))
     parse_task = task_graph.add_task(
-        parse,
-        args=[json_list, csv_filepath],
+        parse_catch_details,
+        args=[target_details_path_list, csv_filepath],
         target_path_list=[csv_filepath],
-        dependent_task_list=collect_task_list)
+        dependent_task_list=details_task_list)
 
     task_graph.close()
     task_graph.join()
