@@ -2,7 +2,6 @@
 
 import argparse
 import csv
-import glob
 import json
 import os
 
@@ -106,7 +105,6 @@ def query(bbox, cursor):
     if cursor:
         variables['after'] = cursor
 
-    #query = "query GetCatchesInMapBoundingBox($boundingBox: BoundingBoxInputObject, $first: Int, $after: String, $caughtInMonths: [MonthEnum!], $speciesIds: [String!]) {\n  mapArea(boundingBox: $boundingBox) {\n    catches(\n      first: $first\n      after: $after\n      caughtInMonths: $caughtInMonths\n      speciesIds: $speciesIds\n    ) {\n      totalCount\n      pageInfo {\n        startCursor\n        hasNextPage\n        endCursor\n        __typename\n      }\n      edges {\n        node {\n          ...CatchId\n          createdAt\n          caughtAtGmt\n          post {\n            ...PostId\n            catch {\n              ...CatchId\n              ...CatchFishingWaterName\n              ...CatchSpeciesName\n              __typename\n            }\n            comments {\n              totalCount\n              __typename\n            }\n            createdAt\n            displayProductUnits {\n              totalCount\n              __typename\n            }\n            images(first: 1, croppingStrategy: SMART, height: 260, width: 333) {\n              totalCount\n              edges {\n                node {\n                  ...ImageFields\n                  __typename\n                }\n                __typename\n              }\n              __typename\n            }\n            likedByCurrentUser\n            likesCount\n            text {\n              text\n              __typename\n            }\n            user {\n              ...UserId\n              ...UserAvatar\n              nickname\n              __typename\n            }\n            __typename\n          }\n          species {\n            ...SpeciesId\n            displayName\n            __typename\n          }\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment CatchId on Catch {\n  _id: externalId\n  __typename\n}\n\nfragment CatchFishingWaterName on Catch {\n  fishingWater {\n    ...FishingWaterId\n    displayName\n    latitude\n    longitude\n    __typename\n  }\n  __typename\n}\n\nfragment FishingWaterId on FishingWater {\n  _id: externalId\n  __typename\n}\n\nfragment CatchSpeciesName on Catch {\n  species {\n    ...SpeciesId\n    displayName\n    __typename\n  }\n  __typename\n}\n\nfragment SpeciesId on Species {\n  _id: externalId\n  __typename\n}\n\nfragment PostId on Post {\n  _id: externalId\n  __typename\n}\n\nfragment ImageFields on Image {\n  width\n  height\n  url\n  __typename\n}\n\nfragment UserAvatar on User {\n  avatar(croppingStrategy: CENTER, height: 128, width: 128) {\n    height\n    width\n    ...ImageFields\n    __typename\n  }\n  __typename\n}\n\nfragment UserId on User {\n  _id: externalId\n  __typename\n}"
     query = """
     query GetCatchesInMapBoundingBox($boundingBox: BoundingBoxInputObject, $first: Int, $after: String, $caughtInMonths: [MonthEnum!], $speciesIds: [String!]) {
       mapArea(boundingBox: $boundingBox) {
@@ -512,7 +510,6 @@ def query_catch_details(in_json_filepath, centroid_dict, target_filepath):
         i += 1
         if (i > 0) and (i % 10 == 0):
             print(f'queried {i}')
-        # catch_id = item['node']['_id']
         post_id = item['node']['post']['_id']
         results = query_catch(post_id)
         data[post_id] = results | centroid_dict
@@ -620,60 +617,6 @@ def parse_catch_details(json_list, target_filepath):
     print(f'Completed. Tabular data is in {target_filepath}')
 
 
-def parse_grid_collection(json_list, target_filepath):
-    base_record = {
-        'centroid_x': '',
-        'centroid_y': '',
-        'id': '',
-        'caughtAtGmt': '',
-        'fishingWaterID': '',
-        'fishingWaterName': '',
-        'fishingWaterLon': '',
-        'fishingWaterLat': '',
-        'speciesID': '',
-        'speciesName': '',
-        'likesCount': '',
-        'text': '',
-        'userID': ''
-    }
-    fieldnames = base_record.keys()
-    with open(target_filepath, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(
-            csvfile, fieldnames=fieldnames, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-        writer.writeheader()
-
-        for jsonfile in json_list:
-            print(f'Parsing data in {jsonfile}')
-            with open(jsonfile, 'r') as file:
-                collection = json.load(file)
-            for item in collection['edges']:
-                record = base_record.copy()
-                node = item['node']
-                record['centroid_x'] = collection['centroid_x']
-                record['centroid_y'] = collection['centroid_y']
-                record['id'] = node['_id']
-                record['caughtAtGmt'] = node['caughtAtGmt']
-
-                fishingWater = node['post']['catch'].get('fishingWater')
-                if fishingWater:
-                    record['fishingWaterID'] = fishingWater['_id']
-                    record['fishingWaterName'] = fishingWater['displayName']
-                    record['fishingWaterLon'] = fishingWater['longitude']
-                    record['fishingWaterLat'] = fishingWater['latitude']
-
-                species = node['post']['catch'].get('species')
-                if species:
-                    record['speciesID'] = species['_id']
-                    record['speciesName'] = species['displayName']
-
-                record['likesCount'] = node['post']['likesCount']
-                record['text'] = node['post']['text']['text']
-                record['userID'] = node['post']['user']['_id']
-                writer.writerow(record)
-
-    print(f'Completed. Tabular data is in {target_filepath}')
-
-
 def main(user_args=None):
     parser = argparse.ArgumentParser(
         description=('')
@@ -718,7 +661,6 @@ def main(user_args=None):
     vector = gdal.OpenEx(aoi_path_wgs84)
     layer = vector.GetLayer()
 
-    # collect_task_list = []
     details_task_list = []
     target_details_path_list = []
     for feature in layer:
@@ -731,7 +673,6 @@ def main(user_args=None):
             'centroid_y': (bbox[1] + bbox[3]) / 2
         }
         target_grid_filepath = os.path.join(json_dir, f'grid_{fid}.json')
-        # target_json_path_list.append(target_grid_filepath)
         collect_task = task_graph.add_task(
             collect,
             args=[bbox, centroid_dict, target_grid_filepath],
