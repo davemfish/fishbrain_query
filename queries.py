@@ -1,7 +1,17 @@
 import requests
 
+from requests.adapters import HTTPAdapter, Retry
 
 BASE_URL = 'https://rutilus.fishbrain.com/graphql'
+
+session = requests.Session()
+
+retries = Retry(total=5,
+                backoff_factor=0.1,
+                status_forcelist=[500, 502, 503, 504])
+
+session.mount('https://', HTTPAdapter(max_retries=retries))
+
 
 def query_bounding_box(bbox, cursor):
     # [minx, miny, maxx, maxy]
@@ -233,7 +243,7 @@ def query_bounding_box(bbox, cursor):
       __typename
     }
     """
-    r = requests.post(BASE_URL, json={'query': query, 'variables': variables})
+    r = session.post(BASE_URL, json={'query': query, 'variables': variables})
     try:
         data = r.json()
     except Exception as err:
@@ -408,7 +418,7 @@ def query_catch(post_id):
     variables = {
         'externalId': post_id
     }
-    r = requests.post(BASE_URL, json={'query': query, 'variables': variables})
+    r = session.post(BASE_URL, json={'query': query, 'variables': variables})
     try:
         return r.json()
     except Exception as err:

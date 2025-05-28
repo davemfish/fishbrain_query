@@ -216,12 +216,15 @@ def main(user_args=None):
         '-a', '--aoi',
         help=('A polygon vector that defines the area to be queried. '
               'This vector can use any coordinate system. '
-              'It will be divided into smaller polygons based on the cellsize argument.'))
+              'It will be divided into smaller polygons if the cellsize '
+              'argument is used.'))
     parser.add_argument(
         '-c', '--cellsize',
         type=int,
         help=('The AOI will be divided into square polygons with width and height '
-              'equal to cellsize. Cellsize uses the same units as the AOI coordinate system.'))
+              'equal to cellsize. Cellsize uses the same units as the AOI coordinate system. '
+              'Omit this argument if the AOI should not be subdivided, for example, if it'
+              'already contains a grid of square polygons.'))
 
     args = parser.parse_args(user_args)
     cache_dir = os.path.join(args.workspace, 'taskgraph_cache')
@@ -229,13 +232,31 @@ def main(user_args=None):
         os.makedirs(cache_dir)
     task_graph = taskgraph.TaskGraph(cache_dir, n_workers=-1)
 
-    aoi_path = os.path.join(args.workspace, 'aoi.shp')
-    grid_vector(args.aoi, args.cellsize, aoi_path)
+    if args.cellsize:
+        aoi_path = os.path.join(args.workspace, 'aoi.shp')
+        _ = task_graph.add_task(
+            grid_vector,
+            args=(args.aoi, args.cellsize, aoi_path),
+            target_path_list=[aoi_path])
+        task_graph.join()
+    else:
+        aoi_path = args.aoi
+
+    aoi_vector = gdal.OpenEx(aoi_path, gdal.OF_VECTOR)
+    aoi_layer = aoi_vector.GetLayer()
+    aoi_srs = aoi_layer.GetSpatialRef()
     lat_lng_ref = osr.SpatialReference()
     lat_lng_ref.ImportFromEPSG(4326)  # EPSG 4326 is lat/lng
-    aoi_path_wgs84 = os.path.join(args.workspace, 'aoi_wgs84.shp')
-    pygeoprocessing.reproject_vector(
-        aoi_path, lat_lng_ref.ExportToWkt(), aoi_path_wgs84)
+    aoi_vector = aoi_layer = None
+    if aoi_srs.IsSameGeogCS(lat_lng_ref):
+        aoi_path_wgs84 = aoi_path
+    else:
+        aoi_path_wgs84 = os.path.join(args.workspace, 'aoi_wgs84.shp')
+        _ = task_graph.add_task(
+            pygeoprocessing.reproject_vector,
+            args=(aoi_path, lat_lng_ref.ExportToWkt(), aoi_path_wgs84),
+            target_path_list=[aoi_path_wgs84])
+        task_graph.join()
 
     csv_filepath = os.path.join(args.workspace, 'catches.csv')
     json_dir = os.path.join(args.workspace, 'json')
